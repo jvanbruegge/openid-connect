@@ -174,6 +174,10 @@ data ClientAuthentication
     -- ^ Create and sign a JWT using a private key.  The provider must
     -- already have access to the public key corresponding to the
     -- private key.
+    
+  | TlsClientAuth
+  
+  | SelfSignedTlsClientAuth
 
   | None
     -- ^ The Client does not authenticate itself at the Token
