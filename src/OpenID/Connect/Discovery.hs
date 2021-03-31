@@ -62,6 +62,9 @@ data Discovery = Discovery
   , userinfoEndpoint :: Maybe URI
     -- ^ URL of the OP's UserInfo Endpoint.
 
+  , endSessionEndpoint :: Maybe URI
+    -- ^ URL of the OP's EndSession Endpoint.
+
   , jwksUri :: URI
     -- ^ URL of the OP's JSON Web Key Set document.
 
