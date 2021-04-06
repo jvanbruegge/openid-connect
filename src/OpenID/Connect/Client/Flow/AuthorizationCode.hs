@@ -37,6 +37,8 @@ module OpenID.Connect.Client.Flow.AuthorizationCode
     -- * Flow
     authenticationRedirect
   , authenticationSuccess
+  , authenticationSuccess'
+  , decodeTokenResponse
   , RedirectTo(..)
 
     -- * Authentication settings
@@ -315,10 +317,34 @@ authenticationSuccess
   -> Credentials
   -> UserReturnFromRedirect
   -> m (Either FlowError (TokenResponse ClaimsSet))
-authenticationSuccess https time (Provider disco keys) creds user = runExceptT $ do
-  _ <- ExceptT (pure (verifyPostRedirectRequest user))
-  token <- ExceptT (exchangeCodeForIdentityToken https time disco creds user)
-  ExceptT (pure (extractClaimsSetFromTokenResponse disco creds token keys time user))
+authenticationSuccess https time provider creds user = runExceptT $ do
+  token <- ExceptT $ authenticationSuccess' https time provider creds user
+  ExceptT (decodeTokenResponse token time provider creds user)
+
+-- | Turn the end-user's authorization token into and identity token, but do not decode it yet.
+authenticationSuccess'
+  :: MonadRandom m
+  => HTTPS m
+  -> UTCTime
+  -> Provider
+  -> Credentials
+  -> UserReturnFromRedirect
+  -> m (Either FlowError (TokenResponse Text))
+authenticationSuccess' https time (Provider disco _) creds user = runExceptT $ do
+    _ <- ExceptT (pure (verifyPostRedirectRequest user))
+    ExceptT (exchangeCodeForIdentityToken https time disco creds user)
+
+decodeTokenResponse
+  :: Monad m
+  => TokenResponse Text
+  -> UTCTime
+  -> Provider
+  -> Credentials
+  -> UserReturnFromRedirect
+  -> m (Either FlowError (TokenResponse ClaimsSet))
+decodeTokenResponse token time (Provider disco keys) creds user = runExceptT $ do
+  signedToken <- ExceptT (pure $ (decodeIdentityToken >>> first TokenDecodingError) token)
+  ExceptT (pure (extractClaimsSetFromTokenResponse disco creds signedToken keys time user))
 
 --------------------------------------------------------------------------------
 -- | Create the provider authorization redirect URI for the end-user.
@@ -386,7 +412,7 @@ exchangeCodeForIdentityToken
   -> Discovery
   -> Credentials
   -> UserReturnFromRedirect
-  -> m (Either FlowError (TokenResponse SignedJWT))
+  -> m (Either FlowError (TokenResponse Text))
 exchangeCodeForIdentityToken https now disco creds user = do
     res <- performRequest
     pure (processResponse =<< res)
@@ -406,11 +432,10 @@ exchangeCodeForIdentityToken https now disco creds user = do
 
     processResponse
       :: HTTP.Response LByteString.ByteString
-      -> Either FlowError (TokenResponse SignedJWT)
+      -> Either FlowError (TokenResponse Text)
     processResponse res =
       parseResponse res
       & bimap InvalidProviderTokenResponseError fst
-      >>= (decodeIdentityToken >>> first TokenDecodingError)
 
     authMethods :: [ClientAuthentication]
     authMethods = maybe [ClientSecretPost] NonEmpty.toList
