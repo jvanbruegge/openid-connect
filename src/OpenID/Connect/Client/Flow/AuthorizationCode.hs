@@ -445,7 +445,6 @@ exchangeCodeForIdentityToken https now disco creds user = do
     body  = [ ("grant_type", "authorization_code")
             , ("code", afterRedirectCodeParam user)
             , ("redirect_uri", Char8.pack (Network.uriToString id (clientRedirectUri creds) []))
-            , ("client_id", Text.encodeUtf8 (assignedClientId creds))
             ]
 
 --------------------------------------------------------------------------------

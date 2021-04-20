@@ -77,7 +77,8 @@ applyRequestAuthentication creds methods uri now body =
 
     useBody :: Text -> HTTP.Request -> HTTP.Request
     useBody secret = pass
-      (body <> [ ("client_secret", Text.encodeUtf8 secret)
+      (body <> [ ("client_secret", Text.encodeUtf8 secret),
+                 ("client_id", Text.encodeUtf8 (assignedClientId creds))
                ])
 
     useBasic :: Text -> HTTP.Request -> HTTP.Request
